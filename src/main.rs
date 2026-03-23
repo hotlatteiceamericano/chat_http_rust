@@ -1,7 +1,10 @@
 use axum::{Router, routing::post};
 use tracing_subscriber::EnvFilter;
 
-use crate::{app_state::AppState, http_handler::login_handler};
+use crate::{
+    app_state::AppState,
+    http_handler::{auth_handler, login_handler},
+};
 pub mod app_error;
 pub mod app_state;
 pub mod http_handler;
@@ -17,6 +20,7 @@ async fn main() {
     let app_state = AppState::new();
     let app = Router::new()
         .route("/login", post(login_handler::handle))
+        .route("/auth", post(auth_handler::handle))
         .with_state(app_state);
     let listner = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     tracing::info!("chat http server starts");
