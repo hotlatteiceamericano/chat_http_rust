@@ -1,5 +1,7 @@
-use axum::{Json, extract::State};
+use anyhow::{Context, Result};
+use axum::{Json, extract::State, http::StatusCode};
 use chat_common::user::User;
+use mongodb::{Database, bson};
 
 use crate::{
     app_error::AppError,
@@ -8,52 +10,51 @@ use crate::{
 };
 
 pub async fn handle(
-    State(_app_state): State<AppState>,
+    State(app_state): State<AppState>,
     Json(payload): Json<LoginRequest>,
-) -> Result<LoginResponse, AppError> {
-    let Some(_user) = email_look_up(&payload.email) else {
+) -> Result<StatusCode, AppError> {
+    let Ok(Some(_user)) = email_look_up(&payload.email, app_state.db).await else {
         return Err(anyhow::anyhow!("email not found").into());
     };
-    let Some(()) = otp_look_up(&payload.email) else {
-        return Err(anyhow::anyhow!("OTP not matched").into());
-    };
-    Ok(LoginResponse {
-        email: String::from("test email"),
-    })
+    Ok(StatusCode::OK)
 }
 
-fn email_look_up(_email: &str) -> Option<User> {
-    // todo: query user from MongoDB Atlas using email
-    Some(User::new(0, "Alice"))
+async fn email_look_up(email: &str, db: Database) -> anyhow::Result<Option<User>> {
+    let users = db.collection::<User>("users");
+    users
+        .find_one(bson::doc! {"email": email})
+        .await
+        .context(format!("failed to find user with email: {}", email))
 }
 
-fn otp_look_up(_email: &str) -> Option<()> {
-    // todo: query OTP from MongoDB Atlas
-    Some(())
-}
-
-#[cfg(test)]
-mod test {
-    use axum::{Router, routing::post};
-    use axum_test::TestServer;
-    use rstest::{fixture, rstest};
-
-    use crate::{app_state::AppState, http_handler::login_handler};
-
-    #[fixture]
-    fn test_server() -> TestServer {
-        let app_state = AppState::new();
-        let app = Router::new()
-            .route("/login", post(login_handler::handle))
-            .with_state(app_state);
-        TestServer::new(app).unwrap()
-    }
-
-    #[rstest]
-    #[tokio::test]
-    async fn test_success_case(test_server: TestServer) {
-        let response = test_server.post("login").await;
-
-        response.assert_status_not_ok();
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use axum::{Router, routing::post};
+//     use axum_test::TestServer;
+//     use rstest::{fixture, rstest};
+//
+//     use crate::{app_state::AppState, http_handler::login_handler};
+//
+//     #[fixture]
+//     fn test_server() -> TestServer {
+//         // research how to use docker to run cargo test together with a local mongodb
+//         let db = get_test_db();
+//         let app_state = AppState::new();
+//         let app = Router::new()
+//             .route("/login", post(login_handler::handle))
+//             .with_state(app_state);
+//         TestServer::new(app).unwrap()
+//     }
+//
+//     fn get_test_db() -> mongodb::Database {
+//         let client = mongodb::Client::with_uri_str("mongodb::")
+//     }
+//
+//     #[rstest]
+//     #[tokio::test]
+//     async fn test_success_case(test_server: TestServer) {
+//         let response = test_server.post("login").await;
+//
+//         response.assert_status_not_ok();
+//     }
+// }

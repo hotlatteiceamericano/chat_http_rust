@@ -1,10 +1,12 @@
+use mongodb::Database;
+
 #[derive(Clone)]
 pub struct AppState {
-    // db
+    pub db: Database,
 }
 
 impl AppState {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(db: Database) -> Self {
+        Self { db }
     }
 }
