@@ -30,7 +30,8 @@ async fn main() {
         std::process::exit(1);
     });
 
-    let app_state = AppState::new(db);
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET required");
+    let app_state = AppState::new(db, jwt_secret);
 
     let app = Router::new()
         .route("/login", post(login_handler::handle))

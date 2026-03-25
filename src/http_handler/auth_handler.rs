@@ -8,6 +8,7 @@ use crate::{
     http_handler::{
         auth_request::AuthRequest,
         auth_response::AuthResponse,
+        jwt,
         otp::{Otp, hash_otp},
     },
 };
@@ -37,9 +38,11 @@ pub async fn handle(
 
     tracing::info!("OTP verified for {}", request.email);
 
-    // TODO: generate a real JWT token
+    let jwt_token = jwt::create_token(&request.email, &app_state.jwt_secret)
+        .context("failed to create JWT token")?;
+
     Ok(AuthResponse {
         websocket_url: String::from("ws://127.0.0.1:3000/ws"),
-        jwt_token: String::from("a_valid_jwt_token"),
+        jwt_token,
     })
 }
