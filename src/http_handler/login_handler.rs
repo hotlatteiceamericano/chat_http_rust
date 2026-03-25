@@ -1,26 +1,32 @@
 use anyhow::{Context, Result};
 use axum::{Json, extract::State, http::StatusCode};
 use chat_common::user::User;
-use mongodb::{Database, bson};
+use mongodb::{Collection, bson};
 
-use crate::{
-    app_error::AppError,
-    app_state::AppState,
-    http_handler::{login_request::LoginRequest, login_response::LoginResponse},
-};
+use crate::{app_error::AppError, app_state::AppState, http_handler::login_request::LoginRequest};
 
 pub async fn handle(
     State(app_state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<StatusCode, AppError> {
-    let Ok(Some(_user)) = email_look_up(&payload.email, app_state.db).await else {
-        return Err(anyhow::anyhow!("email not found").into());
+    let users = app_state.db.collection::<User>("users");
+    if let Ok(Some(_user)) = email_look_up(&payload.email, users).await {
+        tracing::info!("found user with email: {}", payload.email);
+    } else {
+        tracing::warn!("email: {} not found, creating one", payload.email);
+        let users = app_state.db.collection::<User>("users");
+        users
+            .insert_one(User::new("Alice", String::from("alice@chat.com")))
+            .await
+            .context(format!(
+                "cannot create a new user for email: {}",
+                payload.email
+            ))?;
     };
     Ok(StatusCode::OK)
 }
 
-async fn email_look_up(email: &str, db: Database) -> anyhow::Result<Option<User>> {
-    let users = db.collection::<User>("users");
+async fn email_look_up(email: &str, users: Collection<User>) -> anyhow::Result<Option<User>> {
     users
         .find_one(bson::doc! {"email": email})
         .await
@@ -32,7 +38,7 @@ async fn email_look_up(email: &str, db: Database) -> anyhow::Result<Option<User>
 //     use axum::{Router, routing::post};
 //     use axum_test::TestServer;
 //     use rstest::{fixture, rstest};
-//
+
 //     use crate::{app_state::AppState, http_handler::login_handler};
 //
 //     #[fixture]
