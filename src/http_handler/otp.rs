@@ -31,6 +31,21 @@ impl Otp {
     pub fn plain_otp(&self) -> &str {
         &self.plain_otp
     }
+
+    pub async fn create_ttl_index(db: &mongodb::Database) -> anyhow::Result<()> {
+        let otps_collection = db.collection::<Otp>("otps");
+        let ttl_index = IndexModel::builder()
+            .keys(bson::doc! { "created_at": 1 })
+            .options(
+                IndexOptions::builder()
+                    .expire_after(Duration::from_secs(600))
+                    .build(),
+            )
+            .build();
+        otps_collection.create_index(ttl_index).await?;
+        tracing::info!("TTL index on otps collection created");
+        Ok(())
+    }
 }
 
 pub fn hash_otp(otp: &str) -> String {

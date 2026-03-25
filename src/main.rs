@@ -25,6 +25,11 @@ async fn main() {
     });
     let db = client.database("chat_app_db");
 
+    Otp::create_ttl_index(&db).await.unwrap_or_else(|e| {
+        tracing::error!("failed to create TTL index on otps collection: {:?}", e);
+        std::process::exit(1);
+    });
+
     let app_state = AppState::new(db);
 
     let app = Router::new()
