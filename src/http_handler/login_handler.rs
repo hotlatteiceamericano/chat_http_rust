@@ -3,7 +3,14 @@ use axum::{Json, extract::State, http::StatusCode};
 use chat_common::user::User;
 use mongodb::{Collection, bson};
 
-use crate::{app_error::AppError, app_state::AppState, http_handler::login_request::LoginRequest};
+use crate::{
+    app_error::AppError,
+    app_state::AppState,
+    http_handler::{
+        login_request::LoginRequest,
+        otp::Otp,
+    },
+};
 
 pub async fn handle(
     State(app_state): State<AppState>,
@@ -23,6 +30,24 @@ pub async fn handle(
                 payload.email
             ))?;
     };
+
+    // Generate OTP, hash it, and store in the otps collection
+    let otp = Otp::new(payload.email.clone());
+
+    let otps = app_state.db.collection::<Otp>("otps");
+
+    // Remove any existing OTP for this email before inserting a new one
+    otps.delete_many(bson::doc! { "email": &payload.email })
+        .await
+        .context("failed to clear old OTPs")?;
+
+    // TODO: send OTP via email using lettre. For now, log it.
+    tracing::info!("OTP for {}: {}", payload.email, otp.plain_otp());
+
+    otps.insert_one(otp)
+        .await
+        .context(format!("failed to store OTP for email: {}", payload.email))?;
+
     Ok(StatusCode::OK)
 }
 

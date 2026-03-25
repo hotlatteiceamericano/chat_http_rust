@@ -4,7 +4,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::{
     app_state::AppState,
-    http_handler::{auth_handler, login_handler},
+    http_handler::{auth_handler, login_handler, otp::Otp},
 };
 pub mod app_error;
 pub mod app_state;

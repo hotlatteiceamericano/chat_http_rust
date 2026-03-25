@@ -15,6 +15,9 @@ tracing-subscriber = { version="0.3" , features=["env-filter"]}
 ratatui = "0.30.0"
 chat_common = {git="https://github.com/hotlatteiceamericano/chat_common"}
 mongodb = "3.5.2"
+rand = "0.8"
+sha2 = "0.10"
+hex = "0.4"
 
 [dev-dependencies]
 rstest = "0.26.1"
