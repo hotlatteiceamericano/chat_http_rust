@@ -6,13 +6,13 @@ use mongodb::{Collection, bson};
 use crate::{
     app_error::AppError,
     app_state::AppState,
-    http_handler::{login_request::LoginRequest, otp::Otp},
+    http_handler::{login_request::LoginRequest, login_response::LoginResponse, otp::Otp},
 };
 
 pub async fn handle(
     State(app_state): State<AppState>,
     Json(payload): Json<LoginRequest>,
-) -> Result<StatusCode, AppError> {
+) -> Result<LoginResponse, AppError> {
     create_if_not_exist(&payload.email, app_state.db.collection::<User>("users")).await?;
 
     let otp = create_otp(&payload.email, app_state.db.collection::<Otp>("otps")).await?;
@@ -20,7 +20,9 @@ pub async fn handle(
     // TODO: send OTP via email using lettre. For now, log it.
     tracing::info!("OTP for {}: {}", payload.email, otp.plain_otp());
 
-    Ok(StatusCode::OK)
+    Ok(LoginResponse {
+        plain_otp: otp.plain_otp().to_owned(),
+    })
 }
 
 async fn create_if_not_exist(email: &str, user_collection: Collection<User>) -> anyhow::Result<()> {
@@ -57,34 +59,58 @@ async fn create_otp(email: &str, otp_collection: Collection<Otp>) -> anyhow::Res
     Ok(otp)
 }
 
-// #[cfg(test)]
-// mod test {
-//     use axum::{Router, routing::post};
-//     use axum_test::TestServer;
-//     use rstest::{fixture, rstest};
+#[cfg(test)]
+mod test {
+    use axum::{Router, routing::post};
+    use axum_test::TestServer;
+    use mongodb::Client;
+    use rstest::{fixture, rstest};
+    use testcontainers::{GenericImage, runners::AsyncRunner};
 
-//     use crate::{app_state::AppState, http_handler::login_handler};
-//
-//     #[fixture]
-//     fn test_server() -> TestServer {
-//         // research how to use docker to run cargo test together with a local mongodb
-//         let db = get_test_db();
-//         let app_state = AppState::new();
-//         let app = Router::new()
-//             .route("/login", post(login_handler::handle))
-//             .with_state(app_state);
-//         TestServer::new(app).unwrap()
-//     }
-//
-//     fn get_test_db() -> mongodb::Database {
-//         let client = mongodb::Client::with_uri_str("mongodb::")
-//     }
-//
-//     #[rstest]
-//     #[tokio::test]
-//     async fn test_success_case(test_server: TestServer) {
-//         let response = test_server.post("login").await;
-//
-//         response.assert_status_not_ok();
-//     }
-// }
+    use crate::{
+        app_state::AppState,
+        http_handler::{login_handler, login_request::LoginRequest, login_response::LoginResponse},
+    };
+
+    #[fixture]
+    async fn test_server() -> (TestServer, testcontainers::ContainerAsync<GenericImage>) {
+        let container = GenericImage::new("mongo", "7")
+            .with_exposed_port(27017.into())
+            .start()
+            .await
+            .unwrap();
+
+        let port = container.get_host_port_ipv4(27017).await.unwrap();
+        let client = Client::with_uri_str(format!("mongodb://localhost:{port}"))
+            .await
+            .unwrap();
+        let db = client.database("test_db");
+
+        let app_state = AppState::new(db, "test-secret".into());
+        let app = Router::new()
+            .route("/login", post(login_handler::handle))
+            .with_state(app_state);
+        let server = TestServer::new(app).unwrap();
+
+        // return container so it stays alive for the duration of the test
+        (server, container)
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_login_success(
+        #[future] test_server: (TestServer, testcontainers::ContainerAsync<GenericImage>),
+    ) {
+        let (server, _container) = test_server.await;
+
+        let response = server
+            .post("/login")
+            .json(&LoginRequest {
+                email: "test@example.com".into(),
+            })
+            .await;
+
+        let body: LoginResponse = response.json();
+        assert!(!body.plain_otp.is_empty());
+    }
+}
