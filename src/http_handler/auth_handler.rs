@@ -1,5 +1,6 @@
 use anyhow::Context;
 use axum::{Json, extract::State};
+use chat_common::auth_response::AuthResponse;
 use mongodb::bson;
 
 use crate::{
@@ -7,7 +8,6 @@ use crate::{
     app_state::AppState,
     http_handler::{
         auth_request::AuthRequest,
-        auth_response::AuthResponse,
         jwt,
         otp::{Otp, hash_otp},
     },
@@ -46,3 +46,5 @@ pub async fn handle(
         jwt_token,
     })
 }
+
+// todo: add test like login handler
