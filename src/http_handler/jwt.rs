@@ -1,13 +1,6 @@
+use chat_common::claim::Claims;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-pub struct Claims {
-    pub sub: String,
-    pub iat: usize,
-    pub exp: usize,
-}
 
 pub fn create_token(email: &str, secret: &str) -> Result<String, jsonwebtoken::errors::Error> {
     let now = Utc::now();
@@ -19,5 +12,9 @@ pub fn create_token(email: &str, secret: &str) -> Result<String, jsonwebtoken::e
         exp: exp.timestamp() as usize,
     };
 
-    encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
+    encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
 }
