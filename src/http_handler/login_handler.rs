@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
-use axum::{Json, extract::State, http::StatusCode};
-use chat_common::user::User;
+use axum::{Json, extract::State};
+use chat_common::{login_response::LoginResponse, user::User};
 use mongodb::{Collection, bson};
 
 use crate::{
     app_error::AppError,
     app_state::AppState,
-    http_handler::{login_request::LoginRequest, login_response::LoginResponse, otp::Otp},
+    http_handler::{login_request::LoginRequest, otp::Otp},
 };
 
 pub async fn handle(
@@ -63,13 +63,14 @@ async fn create_otp(email: &str, otp_collection: Collection<Otp>) -> anyhow::Res
 mod test {
     use axum::{Router, routing::post};
     use axum_test::TestServer;
+    use chat_common::login_response::LoginResponse;
     use mongodb::Client;
     use rstest::{fixture, rstest};
     use testcontainers::{GenericImage, runners::AsyncRunner};
 
     use crate::{
         app_state::AppState,
-        http_handler::{login_handler, login_request::LoginRequest, login_response::LoginResponse},
+        http_handler::{login_handler, login_request::LoginRequest},
     };
 
     #[fixture]
