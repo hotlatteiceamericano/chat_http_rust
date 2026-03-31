@@ -37,7 +37,7 @@ async fn main() {
         .route("/login", post(login_handler::handle))
         .route("/auth", post(auth_handler::handle))
         .with_state(app_state);
-    let listner = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listner = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
 
     tracing::info!("chat http server starts");
     axum::serve(listner, app).await.unwrap();
