@@ -42,7 +42,7 @@ pub async fn handle(
         .context("failed to create JWT token")?;
 
     Ok(AuthResponse {
-        websocket_url: String::from("ws://127.0.0.1:3000/ws"),
+        websocket_url: String::from("ws://0.0.0.0:8081/ws"),
         jwt_token,
     })
 }
