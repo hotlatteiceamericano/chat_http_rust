@@ -13,7 +13,8 @@ pub async fn handle(
     State(app_state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<LoginResponse, AppError> {
-    create_if_not_exist(&payload.email, app_state.db.collection::<User>("users")).await?;
+    let user =
+        create_if_not_exist(&payload.email, app_state.db.collection::<User>("users")).await?;
 
     let otp = create_otp(&payload.email, app_state.db.collection::<Otp>("otps")).await?;
 
@@ -22,16 +23,20 @@ pub async fn handle(
 
     Ok(LoginResponse {
         plain_otp: otp.plain_otp().to_owned(),
+        user_id: user.id(),
     })
 }
 
-async fn create_if_not_exist(email: &str, user_collection: Collection<User>) -> anyhow::Result<()> {
+async fn create_if_not_exist(
+    email: &str,
+    user_collection: Collection<User>,
+) -> anyhow::Result<User> {
     let existing_user = user_collection
         .find_one(bson::doc! {"email": email})
         .await
-        .context(format!("failed to find user with email: {}", email));
+        .context(format!("failed to find user with email: {}", email))?;
 
-    if let Ok(None) = existing_user {
+    if let None = existing_user {
         tracing::warn!("email: {} not found, creating one", email);
         user_collection
             .insert_one(User::new("Alice", String::from("alice@chat.com")))
@@ -40,7 +45,14 @@ async fn create_if_not_exist(email: &str, user_collection: Collection<User>) -> 
             .context("failed to create new user")?;
     };
 
-    Ok(())
+    user_collection
+        .find_one(bson::doc! {"email": email})
+        .await
+        .context("failed to re-fetch the newly created user")?
+        .context(format!(
+            "user not found after creation for email: {}",
+            email
+        ))
 }
 
 async fn create_otp(email: &str, otp_collection: Collection<Otp>) -> anyhow::Result<Otp> {
