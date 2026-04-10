@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 use axum::{Json, extract::State};
 use chat_common::{login_response::LoginResponse, user::User};
-use mongodb::{Collection, bson};
+use mongodb::{
+    Collection,
+    bson::{self, Document},
+};
 
 use crate::{
     app_error::AppError,
@@ -36,23 +39,26 @@ async fn create_if_not_exist(
         .await
         .context(format!("failed to find user with email: {}", email))?;
 
-    if let None = existing_user {
+    if existing_user.is_none() {
         tracing::warn!("email: {} not found, creating one", email);
-        user_collection
-            .insert_one(User::new("Alice", String::from("alice@chat.com")))
+        let insert_result = user_collection
+            // todo: ask display name from user
+            .insert_one(User::new(email, String::from(email)))
             .await
             .context(format!("cannot create a new user for email: {}", email))
             .context("failed to create new user")?;
     };
 
-    user_collection
+    let user = user_collection
         .find_one(bson::doc! {"email": email})
         .await
         .context("failed to re-fetch the newly created user")?
         .context(format!(
             "user not found after creation for email: {}",
             email
-        ))
+        ))?;
+
+    Ok(user)
 }
 
 async fn create_otp(email: &str, otp_collection: Collection<Otp>) -> anyhow::Result<Otp> {

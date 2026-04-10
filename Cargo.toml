@@ -13,7 +13,7 @@ tokio = {version="1.50.0", features=["full"]}
 tracing = "0.1"
 tracing-subscriber = { version="0.3" , features=["env-filter"]}
 ratatui = "0.30.0"
-chat_common = {git="https://github.com/hotlatteiceamericano/chat_common"}
+chat_common = {git="https://github.com/hotlatteiceamericano/chat_common", features=["mongodb"]}
 mongodb = "3.5.2"
 rand = "0.8"
 sha2 = "0.10"
