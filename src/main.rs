@@ -1,10 +1,13 @@
-use axum::{Router, routing::post};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 use mongodb::Client;
 use tracing_subscriber::EnvFilter;
 
 use crate::{
     app_state::AppState,
-    http_handler::{auth_handler, login_handler, otp::Otp},
+    http_handler::{auth_handler, login_handler, otp::Otp, user_handler},
 };
 pub mod app_error;
 pub mod app_state;
@@ -36,9 +39,10 @@ async fn main() {
     let app = Router::new()
         .route("/login", post(login_handler::handle))
         .route("/auth", post(auth_handler::handle))
+        .route("/user", get(user_handler::handle))
         .with_state(app_state);
     let listner = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
 
-    tracing::info!("chat http server starts");
+    tracing::info!("chat http server starts listening on port 8080");
     axum::serve(listner, app).await.unwrap();
 }

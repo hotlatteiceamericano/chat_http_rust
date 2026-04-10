@@ -4,3 +4,4 @@ pub mod jwt;
 pub mod login_handler;
 pub mod login_request;
 pub mod otp;
+pub mod user_handler;
